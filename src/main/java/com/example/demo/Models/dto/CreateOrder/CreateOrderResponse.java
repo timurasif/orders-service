@@ -12,8 +12,6 @@ public class CreateOrderResponse {
     Integer id;
     private Integer distance;
     private String status;
-    private String error;
-
 
     public static CreateOrderResponse fromEntity(OrderEntity entity) {
         return CreateOrderResponse.builder()

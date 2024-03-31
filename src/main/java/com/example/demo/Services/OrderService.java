@@ -27,7 +27,12 @@ public class OrderService {
         String destination = String.join(",", orderToCreate.getDestination());
 
         DistanceResponse distanceResponse = googleMapsService.getDistance(origin, destination);
-        int distance = distanceResponse.getRows()[0].getElements()[0].getDistance().getValue();
+        int distance = 0;
+        try {
+            distance = distanceResponse.getRows()[0].getElements()[0].getDistance().getValue();
+        } catch (NullPointerException n) {
+            return null;
+        }
 
         OrderEntity orderEntity = OrderEntity.builder()
                 .distance(distance)
@@ -57,7 +62,8 @@ public class OrderService {
     }
 
     public List<OrderEntity> getOrders(int page, int limit) {
-       return null;
+       int ordersToFetch = page*limit;
+        return orderRepoInterface.getFirstNOrders(ordersToFetch);
     }
 
 }

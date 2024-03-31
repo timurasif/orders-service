@@ -9,6 +9,4 @@ import lombok.*;
 @NoArgsConstructor
 public class TakeOrderResponse {
     private String status;
-    private String error;
-
 }

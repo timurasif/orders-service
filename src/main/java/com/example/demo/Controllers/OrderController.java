@@ -1,6 +1,8 @@
 package com.example.demo.Controllers;
 
 import com.example.demo.Configuration.Constants;
+import com.example.demo.Models.Entities.OrderEntity;
+import com.example.demo.Models.ErrorResponse;
 import com.example.demo.Models.dto.*;
 import com.example.demo.Models.dto.CreateOrder.CreateOrderRequest;
 import com.example.demo.Models.dto.CreateOrder.CreateOrderResponse;
@@ -16,6 +18,7 @@ import org.springframework.validation.BindingResult;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
 import java.util.Objects;
 
 @RestController
@@ -31,54 +34,55 @@ public class OrderController {
     @Operation(summary = "Create new order.")
     public Response<Object> createOrder(@Valid @RequestBody CreateOrderRequest createOrderRequest, BindingResult result) {
         if (result.hasErrors()) {
-            String errorMsg = String.format("Validation error: %s", Objects.requireNonNull(result.getFieldError()).getDefaultMessage());
-            return new Response<>(Constants.HttpStatusCodes.BAD_REQUEST, new CreateOrderResponse(null, null, null, errorMsg));
+            String errorMsg = String.format(Constants.VALIDATION_ERROR_MESSAGE, Objects.requireNonNull(result.getFieldError()).getDefaultMessage());
+            return new Response<>(Constants.HttpStatusCodes.BAD_REQUEST, new ErrorResponse(errorMsg));
         }
         if(!validator.hasValidCoordinates(createOrderRequest.getOrigin())){
-            String errorMsg = String.format("Validation error: %s", "Invalid Origin");
-            return new Response<>(Constants.HttpStatusCodes.BAD_REQUEST, new CreateOrderResponse(null, null, null, errorMsg));
+            String errorMsg = String.format(Constants.VALIDATION_ERROR_MESSAGE, Constants.INVALID_ORIGIN);
+            return new Response<>(Constants.HttpStatusCodes.BAD_REQUEST, new ErrorResponse(errorMsg));
         }
         if(!validator.hasValidCoordinates(createOrderRequest.getDestination())){
-            String errorMsg = String.format("Validation error: %s", "Invalid Destination");
-            return new Response<>(Constants.HttpStatusCodes.BAD_REQUEST, new CreateOrderResponse(null, null, null, errorMsg));
+            String errorMsg = String.format(Constants.VALIDATION_ERROR_MESSAGE, Constants.INVALID_DESTINATION);
+            return new Response<>(Constants.HttpStatusCodes.BAD_REQUEST, new ErrorResponse(errorMsg));
         }
 
         CreateOrderResponse createdOrder = orderService.createNewOrder(createOrderRequest);
-        return new Response<>(Constants.HttpStatusCodes.SUCCESS, createdOrder);
+        return createdOrder != null ? new Response<>(Constants.HttpStatusCodes.SUCCESS, createdOrder) :
+                new Response<>(Constants.HttpStatusCodes.BAD_REQUEST, new ErrorResponse(Constants.DISTANCE_UNCALCULABLE));
     }
 
     @PatchMapping("/{id}")
     @Operation(summary = "Take order.")
-    public Response takeOrder(@PathVariable("id") Integer id, @Valid @RequestBody TakeOrderRequest takeOrderRequest, BindingResult result) {
+    public Response<Object> takeOrder(@PathVariable("id") Integer id, @Valid @RequestBody TakeOrderRequest takeOrderRequest, BindingResult result) {
         if (result.hasErrors()) {
-            String errorMsg = String.format("Validation error: %s", Objects.requireNonNull(result.getFieldError()).getDefaultMessage());
-            return new Response<>(Constants.HttpStatusCodes.BAD_REQUEST, new TakeOrderResponse(null, errorMsg));
+            String errorMsg = String.format(Constants.VALIDATION_ERROR_MESSAGE, Objects.requireNonNull(result.getFieldError()).getDefaultMessage());
+            return new Response<>(Constants.HttpStatusCodes.BAD_REQUEST, new ErrorResponse(errorMsg));
         }
         if(!validator.hasValidStatus(takeOrderRequest.getStatus())){
-            String errorMsg = String.format("Invalid order status: %s", takeOrderRequest.getStatus());
-            return new Response<>(Constants.HttpStatusCodes.BAD_REQUEST, new TakeOrderResponse(null, errorMsg));
+            String errorMsg = String.format(Constants.VALIDATION_ERROR_MESSAGE, takeOrderRequest.getStatus());
+            return new Response<>(Constants.HttpStatusCodes.BAD_REQUEST, new ErrorResponse(errorMsg));
         }
         if(takeOrderRequest.getStatus().equalsIgnoreCase(Constants.ORDER_STATUS_UNASSIGNED)){
-            String errorMsg = String.format("Order status not meaningful: %s", takeOrderRequest.getStatus());
-            return new Response<>(Constants.HttpStatusCodes.FORBIDDEN, new TakeOrderResponse(null, errorMsg));
+            String errorMsg = String.format(Constants.UNMEANINGFUL_ORDER_STATUS, takeOrderRequest.getStatus());
+            return new Response<>(Constants.HttpStatusCodes.FORBIDDEN, new ErrorResponse(errorMsg));
         }
 
         boolean status = orderService.takeOrder(id, takeOrderRequest.getStatus().toUpperCase());
-        return status ? new Response(Constants.HttpStatusCodes.SUCCESS, new TakeOrderResponse("SUCCESS", null)) :
-                new Response(Constants.HttpStatusCodes.CONFLICT, new TakeOrderResponse(null, "Order already taken."));
+        return status ? new Response<>(Constants.HttpStatusCodes.SUCCESS, new TakeOrderResponse("SUCCESS")) :
+                new Response<>(Constants.HttpStatusCodes.CONFLICT, new ErrorResponse(Constants.ORDER_ALREADY_TAKEN));
     }
 
     @GetMapping()
-    public Response getOrders(@RequestParam(name = "page", defaultValue = "1") String page,
+    public Response<Object> getOrders(@RequestParam(name = "page", defaultValue = "1") String page,
                             @RequestParam(name = "limit", defaultValue = "10") String limit) {
         try {
             int pageNum = Integer.parseInt(page);
             int limitNum = Integer.parseInt(limit);
 
-            orderService.getOrders(pageNum, limitNum);
-            return new Response(Constants.HttpStatusCodes.SUCCESS, new GetOrderResponse(null, "OKAY."));
+            List<OrderEntity> orders = orderService.getOrders(pageNum, limitNum);
+            return new Response<>(Constants.HttpStatusCodes.SUCCESS, new GetOrderResponse(orders));
         } catch (NumberFormatException e) {
-            return new Response(Constants.HttpStatusCodes.BAD_REQUEST, new GetOrderResponse(null, "Page and Limit must be Integers."));
+            return new Response<>(Constants.HttpStatusCodes.BAD_REQUEST, new ErrorResponse(Constants.INVALID_PAGE_LIMIT));
         }
     }
 
