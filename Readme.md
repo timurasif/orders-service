@@ -1,9 +1,9 @@
+## Service name
+Service name: orders-service
+
 ## Ports
 - Service port: 8080
 - Mysql port: 3306
-
-## Service name
-Service name: orders-service
 
 ## Running the service locally
 - Provide google maps api key in application.properties file
